@@ -824,3 +824,111 @@ img {
     padding: 48px 0 40px;
   }
 }
+
+/* ==========================================================================
+   管理后台（write 页）：Token / 文章列表 / 危险按钮
+   ========================================================================== */
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn.danger {
+  border-color: var(--magenta);
+  color: var(--magenta);
+}
+.btn.danger:hover {
+  background: var(--magenta);
+  border-color: var(--magenta);
+  color: #0b0b0e;
+}
+
+.token-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.token-status {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--faint);
+}
+.token-status.ok {
+  color: var(--green);
+}
+.token-status.err {
+  color: var(--magenta);
+}
+.token-panel {
+  padding: 16px 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.token-panel p {
+  color: var(--dim);
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+.token-panel .field-row {
+  align-items: end;
+}
+
+.manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.manage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.manage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.manage-title {
+  color: var(--text);
+  font-weight: 700;
+  font-size: 15px;
+}
+.manage-title:hover {
+  color: var(--accent);
+}
+.manage-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: 1px;
+}
+.manage-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.manage-note {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+.manage-note code {
+  color: var(--cyan);
+}
+.manage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}

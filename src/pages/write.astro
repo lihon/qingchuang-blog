@@ -1,13 +1,30 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { GITHUB_USER, REPO_NAME } from '../config';
 
-const today = new Date();
+const posts = (await getCollection('posts')).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime()
+);
+const BASE = import.meta.env.BASE_URL;
+
 const pad = (n: number) => String(n).padStart(2, '0');
+const today = new Date();
 const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+// 把文章内容序列化给前端，用于「编辑 / 删除」
+const postsData = posts.map((p) => ({
+  id: p.id,
+  title: p.data.title,
+  description: p.data.description ?? '',
+  date: `${p.data.date.getFullYear()}-${pad(p.data.date.getMonth() + 1)}-${pad(p.data.date.getDate())}`,
+  tags: p.data.tags ?? [],
+  body: p.body ?? '',
+}));
 
 const template = `## 从这里开始
 
-欢迎使用 **青创科云** 的在线编辑器。左侧写 Markdown，右侧实时预览。
+欢迎使用 **青创科云** 在线写作。左侧写 Markdown，右侧实时预览。
 
 ### 支持什么？
 
@@ -20,11 +37,13 @@ const template = `## 从这里开始
 console.log('hello, 青创科云');
 \`\`\`
 
-> 写好后，点上方「下载 .md」，把文件放进 \`src/content/posts/\` 提交即可发布。
+> 写好后点「🚀 发布到博客」，约 1 分钟后上线。
 `;
+
+const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, '\\u003c');
 ---
 
-<BaseLayout title="写文章" description="在线 Markdown 编辑器，实时预览、一键导出" active="write">
+<BaseLayout title="写文章" description="在线 Markdown 编辑器：写作、发布、删除" active="write">
   <section class="write">
     <div class="container">
       <div class="section-head">
@@ -32,10 +51,33 @@ console.log('hello, 青创科云');
         <h2>写文章 / Write</h2>
       </div>
 
+      <div class="token-bar">
+        <button class="btn" id="btn-token" type="button">⚙ Token 设置</button>
+        <span class="token-status" id="token-status">未设置</span>
+      </div>
+
+      <div class="token-panel" id="token-panel" hidden>
+        <p>
+          粘贴一个 <strong>Fine-grained PAT</strong>（仅需授权 <code>{REPO_NAME}</code> 仓库的
+          <strong>Contents 读写</strong>权限）。
+          <a href={`https://github.com/settings/personal-access-tokens/new`} target="_blank" rel="noopener">去创建 →</a>
+        </p>
+        <div class="field-row">
+          <div class="field">
+            <input id="token-input" type="password" placeholder="github_pat_..." autocomplete="off" />
+          </div>
+          <button class="btn primary" id="btn-save-token" type="button">保存</button>
+        </div>
+        <p class="manage-note">
+          Token 只保存在你浏览器的 localStorage，不会写入代码仓库、也不会被访客看到。请勿在公共电脑使用。
+        </p>
+      </div>
+
       <div class="editor-toolbar">
-        <button class="btn primary" id="btn-download" type="button">⬇ 下载 .md</button>
-        <button class="btn" id="btn-copy" type="button">复制 Markdown</button>
-        <button class="btn" id="btn-clear" type="button">清空正文</button>
+        <button class="btn primary" id="btn-publish" type="button">🚀 发布到博客</button>
+        <button class="btn" id="btn-download" type="button">⬇ 下载 .md</button>
+        <button class="btn" id="btn-copy" type="button">复制</button>
+        <button class="btn" id="btn-clear" type="button">清空</button>
         <span class="brand-sub" id="status" style="margin-left:auto;">READY // 实时预览已开启</span>
       </div>
 
@@ -72,28 +114,99 @@ console.log('hello, 青创科云');
         </div>
       </div>
 
-      <div class="hint">
-        <strong>如何发布？</strong> 三种方式任选其一：
-        <ol>
-          <li>点「下载 .md」→ 把文件放进仓库 <code>src/content/posts/</code> → <code>git push</code>，网站自动更新。</li>
-          <li>直接在 GitHub 网页端新建文件，粘贴内容到 <code>src/content/posts/xxx.md</code> 并提交。</li>
-          <li>复制 Markdown 到任意支持 md 的平台。</li>
-        </ol>
+      <div class="section-head" style="margin-top:56px;">
+        <span class="no">04</span>
+        <h2>已发布文章 / Manage</h2>
       </div>
+
+      <div class="manage-head">
+        <button class="btn btn-sm" id="btn-new" type="button">＋ 新建文章</button>
+        <span class="manage-note" style="margin:0;">共 {posts.length} 篇</span>
+      </div>
+      <div class="manage-list" id="manage-list"></div>
+
+      <p class="manage-note">
+        ⚠ 博客是纯静态站，文章 = 仓库 <code>src/content/posts/</code> 里的 <code>.md</code> 文件。
+        发布/删除会通过 GitHub API 提交，约 1 分钟后由 Actions 自动重新部署。
+      </p>
     </div>
   </section>
 </BaseLayout>
 
+<script type="application/json" id="posts-data" set:html={clientData}></script>
+
 <script>
   import { marked } from 'marked';
+  import { GITHUB_USER, REPO_NAME, REPO_URL } from '../config';
 
   marked.setOptions({ gfm: true, breaks: true });
 
   const $ = (id) => document.getElementById(id);
+  const API = 'https://api.github.com';
+  const BRANCH = 'main';
+  const POSTS_DIR = 'src/content/posts';
+
   const editor = $('editor');
   const preview = $('preview');
   const status = $('status');
+  const DATA = JSON.parse($('posts-data').textContent);
+  const postsData = DATA.posts;
+  const templateBody = DATA.template;
 
+  let currentSlug = null; // null = 新建
+
+  // ---------- Token ----------
+  const getToken = () => localStorage.getItem('gh_token') || '';
+  const setToken = (t) => {
+    if (t) localStorage.setItem('gh_token', t);
+    else localStorage.removeItem('gh_token');
+    refreshTokenUI();
+  };
+
+  async function apiFetch(path, opts = {}) {
+    const token = getToken();
+    if (!token) throw new Error('NO_TOKEN');
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(opts.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        msg = j.message || msg;
+      } catch {}
+      throw new Error(msg);
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  async function refreshTokenUI() {
+    const el = $('token-status');
+    if (!getToken()) {
+      el.textContent = '未设置';
+      el.className = 'token-status';
+      return;
+    }
+    el.textContent = '验证中…';
+    el.className = 'token-status';
+    try {
+      const u = await apiFetch('/user');
+      el.textContent = `已连接 · ${u.login}`;
+      el.className = 'token-status ok';
+    } catch (e) {
+      el.textContent = `Token 无效（${e.message}）`;
+      el.className = 'token-status err';
+    }
+  }
+
+  // ---------- 预览 ----------
   function render() {
     preview.innerHTML = marked.parse(editor.value);
   }
@@ -119,31 +232,137 @@ console.log('hello, 青创科云');
 
     const fm = ['---', `title: ${JSON.stringify(title || '未命名')}`];
     if (desc) fm.push(`description: ${JSON.stringify(desc)}`);
-    fm.push(`date: ${date || todayStr}`);
+    fm.push(`date: ${date || todayStr()}`);
     if (tags.length) fm.push(`tags: [${tags.map((t) => JSON.stringify(t)).join(', ')}]`);
     fm.push('---', '', editor.value.replace(/\s+$/, ''));
-
     return fm.join('\n');
   }
 
-  function flash(msg) {
+  const todayStr = () => {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  };
+
+  function utf8ToB64(s) {
+    const bytes = new TextEncoder().encode(s);
+    let bin = '';
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin);
+  }
+
+  function flash(msg, isErr = false) {
     status.textContent = msg;
-    status.style.color = 'var(--green)';
+    status.style.color = isErr ? 'var(--magenta)' : 'var(--green)';
     setTimeout(() => {
       status.textContent = 'READY // 实时预览已开启';
       status.style.color = '';
-    }, 2000);
+    }, 4000);
   }
 
-  $('btn-copy').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(buildMarkdown());
-      flash('✅ 已复制到剪贴板');
-    } catch {
-      flash('⚠ 复制失败，请手动全选复制');
-    }
-  });
+  // ---------- 表单状态 ----------
+  function resetForm() {
+    currentSlug = null;
+    $('title').value = '';
+    $('desc').value = '';
+    $('date').value = todayStr();
+    $('tags').value = '';
+    editor.value = templateBody;
+    $('btn-publish').textContent = '🚀 发布到博客';
+    render();
+  }
 
+  function fillForm(p) {
+    currentSlug = p.id;
+    $('title').value = p.title;
+    $('desc').value = p.description || '';
+    $('date').value = p.date;
+    $('tags').value = (p.tags || []).join(', ');
+    editor.value = p.body || '';
+    $('btn-publish').textContent = '🔄 发布更新';
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ---------- 发布 / 删除 ----------
+  async function publish() {
+    try {
+      const md = buildMarkdown();
+      const slug = currentSlug || slugify($('title').value);
+      const path = `${POSTS_DIR}/${slug}.md`;
+      const payload = {
+        message: currentSlug ? `更新文章 ${slug}` : `发布文章 ${slug}`,
+        content: utf8ToB64(md),
+        branch: BRANCH,
+      };
+      if (currentSlug) {
+        const info = await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`);
+        payload.sha = info.sha;
+      }
+      await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      currentSlug = slug;
+      $('btn-publish').textContent = '🔄 发布更新';
+      flash(`🚀 已发布「${slug}」，约 1 分钟后上线`);
+      renderList();
+    } catch (e) {
+      if (e.message === 'NO_TOKEN') flash('⚠ 请先在上方设置 Token', true);
+      else flash(`⚠ 发布失败：${e.message}`, true);
+    }
+  }
+
+  async function removeArticle(p) {
+    if (!confirm(`确定删除《${p.title}》？此操作会从仓库删除该文件。`)) return;
+    try {
+      const path = `${POSTS_DIR}/${p.id}.md`;
+      const info = await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`);
+      await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ message: `删除文章 ${p.id}`, sha: info.sha, branch: BRANCH }),
+      });
+      flash(`🗑 已删除「${p.title}」，约 1 分钟后下线`);
+      renderList();
+    } catch (e) {
+      if (e.message === 'NO_TOKEN') flash('⚠ 请先在上方设置 Token', true);
+      else flash(`⚠ 删除失败：${e.message}`, true);
+    }
+  }
+
+  // ---------- 文章列表 ----------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function renderList() {
+    const wrap = $('manage-list');
+    if (!postsData.length) {
+      wrap.innerHTML = '<div class="empty">// 暂无文章</div>';
+      return;
+    }
+    wrap.innerHTML = postsData
+      .map(
+        (p) => `
+        <div class="manage-item" data-id="${esc(p.id)}">
+          <div class="manage-info">
+            <a class="manage-title" href="${esc(BASE_URL + 'posts/' + p.id + '/')}">${esc(p.title)}</a>
+            <span class="manage-meta">${esc(p.date)}${p.tags?.length ? ' · ' + esc(p.tags.join(' / ')) : ''}</span>
+          </div>
+          <div class="manage-actions">
+            <button class="btn btn-sm" data-act="edit" type="button">编辑</button>
+            <button class="btn btn-sm danger" data-act="del" type="button">删除</button>
+          </div>
+        </div>`
+      )
+      .join('');
+  }
+
+  const BASE_URL = '/' + REPO_NAME + '/';
+
+  // ---------- 事件绑定 ----------
+  $('editor').addEventListener('input', render);
+  $('btn-publish').addEventListener('click', publish);
   $('btn-download').addEventListener('click', () => {
     const md = buildMarkdown();
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
@@ -153,15 +372,52 @@ console.log('hello, 青创科云');
     a.download = `${slugify($('title').value)}.md`;
     a.click();
     URL.revokeObjectURL(url);
-    flash('⬇ 已开始下载 .md 文件');
+    flash('⬇ 已开始下载 .md');
   });
-
+  $('btn-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildMarkdown());
+      flash('✅ 已复制到剪贴板');
+    } catch {
+      flash('⚠ 复制失败，请手动全选复制', true);
+    }
+  });
   $('btn-clear').addEventListener('click', () => {
     editor.value = '';
     render();
     flash('🧹 已清空正文');
   });
+  $('btn-new').addEventListener('click', resetForm);
 
-  editor.addEventListener('input', render);
+  $('btn-token').addEventListener('click', () => {
+    $('token-panel').hidden = !$('token-panel').hidden;
+  });
+  $('btn-save-token').addEventListener('click', () => {
+    const v = $('token-input').value.trim();
+    if (!v) {
+      setToken('');
+      flash('已清除 Token');
+      $('token-input').value = '';
+      return;
+    }
+    setToken(v);
+    $('token-input').value = '';
+    flash('✅ Token 已保存（仅存于本浏览器）');
+  });
+
+  $('manage-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const item = btn.closest('.manage-item');
+    const id = item.dataset.id;
+    const p = postsData.find((x) => x.id === id);
+    if (!p) return;
+    if (btn.dataset.act === 'edit') fillForm(p);
+    else removeArticle(p);
+  });
+
+  // 初始化
   render();
+  renderList();
+  refreshTokenUI();
 </script>
