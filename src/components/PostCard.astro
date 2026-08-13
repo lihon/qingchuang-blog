@@ -1,0 +1,31 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+
+const { post } = Astro.props;
+const BASE = import.meta.env.BASE_URL;
+const d = post.data.date;
+const pad = (n: number) => String(n).padStart(2, '0');
+const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+---
+
+<a class="post-card" href={`${BASE}posts/${post.id}/`}>
+  <div class="post-card-top">
+    <span class="date">[{dateStr}]</span>
+    {post.data.tags.length > 0 && <span># {post.data.tags[0]}</span>}
+  </div>
+  <h3>{post.data.title}</h3>
+  {post.data.description && <p>{post.data.description}</p>}
+  {
+    post.data.tags.length > 0 && (
+      <div class="tags">
+        {post.data.tags.map((t) => (
+          <span class="tag">{t}</span>
+        ))}
+      </div>
+    )
+  }
+</a>

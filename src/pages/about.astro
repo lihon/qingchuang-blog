@@ -1,0 +1,60 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import logo from '../assets/logo.png';
+
+const BASE = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="关于" description="关于 青创科云 与作者 ZM.熵增" active="about">
+  <section class="about">
+    <div class="container">
+      <div class="section-head">
+        <span class="no">02</span>
+        <h2>关于 / About</h2>
+      </div>
+
+      <div class="about-grid">
+        <aside class="about-card">
+          <img class="avatar-logo" src={logo.src} alt="ZM.熵增 logo" />
+          <div class="name">ZM.熵增</div>
+          <div class="role">Founder · Creator</div>
+          <p class="bio">青创科云创始人。相信技术是熵增宇宙里的一束逆向的光。</p>
+          <div class="links">
+            <a href={`${BASE}write/`}>→ 开始写作</a>
+            <a href={`${BASE}`}>→ 返回首页</a>
+          </div>
+        </aside>
+
+        <div class="prose">
+          <h2>青创科云</h2>
+          <p>
+            <strong>青创科云</strong> 是「青春 · 创业 · 科技」的缩写，也是这个博客的名字。
+            这里记录我在创业与技术路上的思考、笔记，以及那些值得被留下来的想法。
+          </p>
+          <p>
+            博客采用<strong>朋克简约风</strong>：深色底色、荧光霓虹、等宽字体与故障效果，
+            用最少的元素传递最强的态度。
+          </p>
+
+          <h3>为什么是「熵增」</h3>
+          <p>
+            热力学第二定律说，孤立系统的熵永不减少。宇宙在不可逆地走向无序，
+            而写作、创造、把想法变成产品，是我们对抗遗忘的方式——
+            明知徒劳，却依然浪漫。
+          </p>
+
+          <blockquote>
+            <p>「我们终将消散，但在那之前，留下点什么。」</p>
+          </blockquote>
+
+          <h3>关于本站</h3>
+          <ul>
+            <li>支持 <strong>Markdown</strong> 写作，把 <code>.md</code> 文件放进仓库即可发布。</li>
+            <li>内置<strong>在线编辑器</strong>，实时预览、一键导出。</li>
+            <li>由 <strong>Astro</strong> 构建，部署在 <strong>GitHub Pages</strong>。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

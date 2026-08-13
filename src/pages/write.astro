@@ -1,0 +1,167 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const today = new Date();
+const pad = (n: number) => String(n).padStart(2, '0');
+const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+const template = `## 从这里开始
+
+欢迎使用 **青创科云** 的在线编辑器。左侧写 Markdown，右侧实时预览。
+
+### 支持什么？
+
+- 标题、列表、引用、表格
+- \`行内代码\` 与代码块
+- **加粗**、*斜体*、~~删除线~~
+
+\`\`\`js
+// 代码块示例
+console.log('hello, 青创科云');
+\`\`\`
+
+> 写好后，点上方「下载 .md」，把文件放进 \`src/content/posts/\` 提交即可发布。
+`;
+---
+
+<BaseLayout title="写文章" description="在线 Markdown 编辑器，实时预览、一键导出" active="write">
+  <section class="write">
+    <div class="container">
+      <div class="section-head">
+        <span class="no">03</span>
+        <h2>写文章 / Write</h2>
+      </div>
+
+      <div class="editor-toolbar">
+        <button class="btn primary" id="btn-download" type="button">⬇ 下载 .md</button>
+        <button class="btn" id="btn-copy" type="button">复制 Markdown</button>
+        <button class="btn" id="btn-clear" type="button">清空正文</button>
+        <span class="brand-sub" id="status" style="margin-left:auto;">READY // 实时预览已开启</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="title">标题 / Title</label>
+          <input id="title" type="text" placeholder="文章标题" />
+        </div>
+        <div class="field">
+          <label for="date">日期 / Date</label>
+          <input id="date" type="text" value={todayStr} />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="desc">简介 / Description</label>
+          <input id="desc" type="text" placeholder="一句话描述（可选）" />
+        </div>
+        <div class="field">
+          <label for="tags">标签 / Tags（逗号分隔）</label>
+          <input id="tags" type="text" placeholder="技术, 随笔" />
+        </div>
+      </div>
+
+      <div class="editor-split">
+        <div class="pane">
+          <div class="pane-head"><span>MARKDOWN</span><span class="dot">●</span></div>
+          <textarea id="editor" spellcheck="false">{template}</textarea>
+        </div>
+        <div class="pane">
+          <div class="pane-head"><span>PREVIEW</span><span class="dot">●</span></div>
+          <div id="preview" class="prose"></div>
+        </div>
+      </div>
+
+      <div class="hint">
+        <strong>如何发布？</strong> 三种方式任选其一：
+        <ol>
+          <li>点「下载 .md」→ 把文件放进仓库 <code>src/content/posts/</code> → <code>git push</code>，网站自动更新。</li>
+          <li>直接在 GitHub 网页端新建文件，粘贴内容到 <code>src/content/posts/xxx.md</code> 并提交。</li>
+          <li>复制 Markdown 到任意支持 md 的平台。</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  import { marked } from 'marked';
+
+  marked.setOptions({ gfm: true, breaks: true });
+
+  const $ = (id) => document.getElementById(id);
+  const editor = $('editor');
+  const preview = $('preview');
+  const status = $('status');
+
+  function render() {
+    preview.innerHTML = marked.parse(editor.value);
+  }
+
+  function slugify(s) {
+    return (
+      (s || 'draft')
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w一-龥]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'draft'
+    );
+  }
+
+  function buildMarkdown() {
+    const title = $('title').value.trim();
+    const desc = $('desc').value.trim();
+    const date = $('date').value.trim();
+    const tags = $('tags')
+      .value.split(/[,，]/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const fm = ['---', `title: ${JSON.stringify(title || '未命名')}`];
+    if (desc) fm.push(`description: ${JSON.stringify(desc)}`);
+    fm.push(`date: ${date || todayStr}`);
+    if (tags.length) fm.push(`tags: [${tags.map((t) => JSON.stringify(t)).join(', ')}]`);
+    fm.push('---', '', editor.value.replace(/\s+$/, ''));
+
+    return fm.join('\n');
+  }
+
+  function flash(msg) {
+    status.textContent = msg;
+    status.style.color = 'var(--green)';
+    setTimeout(() => {
+      status.textContent = 'READY // 实时预览已开启';
+      status.style.color = '';
+    }, 2000);
+  }
+
+  $('btn-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildMarkdown());
+      flash('✅ 已复制到剪贴板');
+    } catch {
+      flash('⚠ 复制失败，请手动全选复制');
+    }
+  });
+
+  $('btn-download').addEventListener('click', () => {
+    const md = buildMarkdown();
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slugify($('title').value)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flash('⬇ 已开始下载 .md 文件');
+  });
+
+  $('btn-clear').addEventListener('click', () => {
+    editor.value = '';
+    render();
+    flash('🧹 已清空正文');
+  });
+
+  editor.addEventListener('input', render);
+  render();
+</script>

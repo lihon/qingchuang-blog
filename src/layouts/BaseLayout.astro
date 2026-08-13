@@ -1,0 +1,96 @@
+---
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/700.css';
+import '@fontsource/bebas-neue/400.css';
+import '../styles/global.css';
+import logo from '../assets/logo.png';
+
+interface Props {
+  title?: string;
+  description?: string;
+  active?: string;
+}
+
+const {
+  title = '青创科云',
+  description = '青创科云 · ZM.熵增 的个人博客 —— 记录想法、技术，与熵增的过程。',
+  active = '',
+} = Astro.props;
+
+const BASE = import.meta.env.BASE_URL;
+const SITE_TITLE = '青创科云';
+const AUTHOR = 'ZM.熵增';
+const fullTitle = title === SITE_TITLE ? title : `${title} · ${SITE_TITLE}`;
+
+const nav = [
+  { label: '首页', href: BASE, key: 'home' },
+  { label: '关于', href: `${BASE}about/`, key: 'about' },
+  { label: '写文章', href: `${BASE}write/`, key: 'write', cta: true },
+];
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={AUTHOR} />
+    <meta name="generator" content={Astro.generator} />
+
+    <link rel="icon" type="image/png" href={`${BASE}favicon.png`} />
+    <link rel="apple-touch-icon" href={`${BASE}apple-touch-icon.png`} />
+
+    <meta property="og:site_name" content={SITE_TITLE} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={`${BASE}og.png`} />
+    <meta name="theme-color" content="#0b0b0e" />
+  </head>
+
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+
+    <div class="site">
+      <header class="site-header">
+        <div class="container">
+          <a class="brand" href={BASE}>
+            <img class="brand-logo" src={logo.src} alt={`${SITE_TITLE} logo`} width="40" height="40" />
+            <span class="brand-text">
+              <span class="brand-name">{SITE_TITLE}</span>
+              <span class="brand-sub">QINGCHUANG · KEYUN</span>
+            </span>
+          </a>
+
+          <nav class="site-nav">
+            {
+              nav.map((item) => (
+                <a
+                  href={item.href}
+                  class:list={[item.cta ? 'nav-cta' : '', item.key === active ? 'active' : '']}
+                >
+                  {item.label}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </header>
+
+      <main class="site-main">
+        <slot />
+      </main>
+
+      <footer class="site-footer">
+        <div class="container">
+          <span class="copy">
+            © {new Date().getFullYear()} <em>{SITE_TITLE}</em> · {AUTHOR}
+          </span>
+          <span class="copy">POWERED BY ASTRO // PUNK·MINIMAL</span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

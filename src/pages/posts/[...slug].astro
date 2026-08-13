@@ -1,0 +1,45 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const d = post.data.date;
+const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+---
+
+<BaseLayout title={post.data.title} description={post.data.description}>
+  <article class="article">
+    <div class="container">
+      <header class="article-head">
+        {
+          post.data.tags.length > 0 && (
+            <div class="tags">
+              {post.data.tags.map((t) => (
+                <span class="tag">{t}</span>
+              ))}
+            </div>
+          )
+        }
+        <h1>{post.data.title}</h1>
+        <div class="meta">
+          <b>{dateStr}</b> · ZM.熵增
+        </div>
+      </header>
+
+      <div class="prose">
+        <Content />
+      </div>
+    </div>
+  </article>
+</BaseLayout>
