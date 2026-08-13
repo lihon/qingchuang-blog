@@ -127,7 +127,7 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
 
       <p class="manage-note">
         ⚠ 博客是纯静态站，文章 = 仓库 <code>src/content/posts/</code> 里的 <code>.md</code> 文件。
-        发布/删除会通过 GitHub API 提交，约 1 分钟后由 Actions 自动重新部署。
+        发布会通过 GitHub API 提交，约 1 分钟后由 Actions 自动重新部署。
       </p>
     </div>
   </section>
@@ -137,7 +137,7 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
 
 <script>
   import { marked } from 'marked';
-  import { GITHUB_USER, REPO_NAME, REPO_URL } from '../config';
+  import { GITHUB_USER, REPO_NAME } from '../config';
 
   marked.setOptions({ gfm: true, breaks: true });
 
@@ -284,7 +284,7 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // ---------- 发布 / 删除 ----------
+  // ---------- 发布 ----------
   async function publish() {
     try {
       const md = buildMarkdown();
@@ -313,23 +313,6 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
     }
   }
 
-  async function removeArticle(p) {
-    if (!confirm(`确定删除《${p.title}》？此操作会从仓库删除该文件。`)) return;
-    try {
-      const path = `${POSTS_DIR}/${p.id}.md`;
-      const info = await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`);
-      await apiFetch(`/repos/${GITHUB_USER}/${REPO_NAME}/contents/${path}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ message: `删除文章 ${p.id}`, sha: info.sha, branch: BRANCH }),
-      });
-      flash(`🗑 已删除「${p.title}」，约 1 分钟后下线`);
-      renderList();
-    } catch (e) {
-      if (e.message === 'NO_TOKEN') flash('⚠ 请先在上方设置 Token', true);
-      else flash(`⚠ 删除失败：${e.message}`, true);
-    }
-  }
-
   // ---------- 文章列表 ----------
   function esc(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -351,7 +334,6 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
           </div>
           <div class="manage-actions">
             <button class="btn btn-sm" data-act="edit" type="button">编辑</button>
-            <button class="btn btn-sm danger" data-act="del" type="button">删除</button>
           </div>
         </div>`
       )
@@ -406,14 +388,12 @@ const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, 
   });
 
   $('manage-list').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-act]');
+    const btn = e.target.closest('button[data-act="edit"]');
     if (!btn) return;
     const item = btn.closest('.manage-item');
     const id = item.dataset.id;
     const p = postsData.find((x) => x.id === id);
-    if (!p) return;
-    if (btn.dataset.act === 'edit') fillForm(p);
-    else removeArticle(p);
+    if (p) fillForm(p);
   });
 
   // 初始化

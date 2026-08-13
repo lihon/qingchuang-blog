@@ -832,15 +832,6 @@ img {
   padding: 5px 10px;
   font-size: 12px;
 }
-.btn.danger {
-  border-color: var(--magenta);
-  color: var(--magenta);
-}
-.btn.danger:hover {
-  background: var(--magenta);
-  border-color: var(--magenta);
-  color: #0b0b0e;
-}
 
 .token-bar {
   display: flex;
