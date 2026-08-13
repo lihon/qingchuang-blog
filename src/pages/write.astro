@@ -12,7 +12,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const today = new Date();
 const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
-// 把文章内容序列化给前端，用于「编辑 / 删除」
+// 把文章内容序列化给前端，用于「编辑」
 const postsData = posts.map((p) => ({
   id: p.id,
   title: p.data.title,
@@ -43,7 +43,7 @@ console.log('hello, 青创科云');
 const clientData = JSON.stringify({ posts: postsData, template }).replace(/</g, '\\u003c');
 ---
 
-<BaseLayout title="写文章" description="在线 Markdown 编辑器：写作、发布、删除" active="write">
+<BaseLayout title="写文章" description="在线 Markdown 编辑器：写作、发布" active="write">
   <section class="write">
     <div class="container">
       <div class="section-head">
